@@ -13,18 +13,18 @@ on:
 # Workflow-level environment variables
 env:
   APP_NAME: github-actions-demo
-  NODE_VERSION: 22
+  NODE_VERSION: '22'
 
-# Required permissions for GitHub Pages
+# Default permissions
 permissions:
   contents: read
 
 jobs:
-  # ==================================
+  # ==========================================
   # STAGE 1: VALIDATION
-  # ==================================
+  # ==========================================
   validate:
-    name: Validate Application
+    name: Stage 1 - Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -36,23 +36,29 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Check HTML
-        run: test -f index.html
+      - name: Display environment
+        run: |
+          echo "Application: $APP_NAME"
+          echo "Node version: $(node --version)"
 
-      - name: Check CSS
-        run: test -f src/style.css
+      - name: Validate required files
+        run: |
+          test -f index.html
+          test -f src/style.css
+          test -f src/script.js
+          echo "All required files exist."
 
-      - name: Check JavaScript
+      - name: Check JavaScript syntax
         run: node --check src/script.js
 
       - name: Validation completed
         run: echo "Validation successful!"
 
-  # ==================================
+  # ==========================================
   # STAGE 2: BUILD
-  # ==================================
+  # ==========================================
   build:
-    name: Build Application
+    name: Stage 2 - Build
     runs-on: ubuntu-latest
 
     needs: validate
@@ -67,30 +73,40 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Create build directory
-        run: mkdir dist
+        run: |
+          mkdir -p dist/src
 
       - name: Copy application files
         run: |
           cp index.html dist/
-          cp -r src dist/
+          cp src/style.css dist/src/
+          cp src/script.js dist/src/
 
-      - name: Display build output
-        run: ls -R dist
+      - name: Verify build output
+        run: |
+          echo "Build contents:"
+          find dist -type f
+
+          test -f dist/index.html
+          test -f dist/src/style.css
+          test -f dist/src/script.js
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-  # ==================================
+  # ==========================================
   # STAGE 3: DEPLOY
-  # ==================================
+  # ==========================================
   deploy:
-    name: Deploy Application
+    name: Stage 3 - Deploy
     runs-on: ubuntu-latest
 
     needs: build
 
+    # Deploy only on main branch push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:
       pages: write
@@ -104,3 +120,8 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Deployment completed
+        run: |
+          echo "Application deployed successfully!"
+          echo "Website: ${{ steps.deployment.outputs.page_url }}"
