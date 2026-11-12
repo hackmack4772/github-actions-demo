@@ -1,29 +1,108 @@
-name: HTML JS CI Pipeline
+name: HTML JS CI CD Pipeline
 
 on:
   push:
     branches:
       - main
+      - development
 
   pull_request:
     branches:
       - main
 
+# Workflow-level environment variables
+env:
+  APP_NAME: github-actions-demo
+  NODE_VERSION: 22
+
+# Required permissions for GitHub Pages
+permissions:
+  contents: read
+
 jobs:
-  test:
+  # ==================================
+  # STAGE 1: VALIDATION
+  # ==================================
+  validate:
+    name: Validate Application
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Check JavaScript syntax
+      - name: Check HTML
+        run: test -f index.html
+
+      - name: Check CSS
+        run: test -f src/style.css
+
+      - name: Check JavaScript
         run: node --check src/script.js
 
-      - name: Pipeline completed
-        run: echo "CI Pipeline successful!"
+      - name: Validation completed
+        run: echo "Validation successful!"
+
+  # ==================================
+  # STAGE 2: BUILD
+  # ==================================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+
+    needs: validate
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Create build directory
+        run: mkdir dist
+
+      - name: Copy application files
+        run: |
+          cp index.html dist/
+          cp -r src dist/
+
+      - name: Display build output
+        run: ls -R dist
+
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  # ==================================
+  # STAGE 3: DEPLOY
+  # ==================================
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    # Deploy only when pushing to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
