@@ -1,5 +1,9 @@
 function showMessage() {
-  document.getElementById('message').innerText = 'GitHub Actions is working!';
+    document.getElementById("message").innerText =
+        "GitHub Actions is working!"
+
+    // Intentional syntax error
+    const message = ;
 }
 
-console.log('Application started successfully');
+console.log("Application started successfully");
